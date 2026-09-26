@@ -1,0 +1,19 @@
+# Runs Node inside a container so nothing needs to be installed on Windows.
+# The project folder is mounted into /app: files edited on Windows are seen by the container.
+#
+#   docker compose up                          -> dev server (https://localhost:5173)
+#   docker compose run --rm app npm install x  -> any npm command
+services:
+  app:
+    image: node:24-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "5173:5173" # npm run dev
+      - "4173:4173" # npm run preview
+    environment:
+      # File changes made on Windows don't emit Linux file events inside the container,
+      # so Vite must poll the disk to detect them (see vite.config.ts).
+      - DOCKER=true
+    command: npm run dev
