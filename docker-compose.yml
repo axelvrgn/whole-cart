@@ -3,6 +3,10 @@
 #
 #   docker compose up                          -> dev server (https://localhost:5173)
 #   docker compose run --rm app npm install x  -> any npm command
+
+# Fixed project name: otherwise Docker names containers after the folder.
+name: whole-cart
+
 services:
   app:
     image: node:24-alpine

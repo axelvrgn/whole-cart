@@ -1,6 +1,6 @@
-# Clean Eating
+# Whole Cart
 
-PWA mobile qui construit une liste de courses privilégiant les produits les moins transformés (NOVA), adaptée à l'enseigne choisie, avec scan de code-barres en rayon.
+PWA mobile : tu saisis ta liste de courses (« yaourt », « thon », « pâtes »…) et, pour chaque article, l'app cherche sur [Open Food Facts](https://world.openfoodfacts.org) les références les moins industrielles et propose un top 3. Fini les comparaisons interminables en rayon.
 
 Démarrage (Docker, pas besoin de Node sur la machine) :
 

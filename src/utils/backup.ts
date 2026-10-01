@@ -1,6 +1,8 @@
 import type { Product, ShoppingItem } from '../types'
 
-const APP_ID = 'clean-eating'
+const APP_ID = 'whole-cart'
+// Backups made before the app was renamed are still accepted.
+const LEGACY_APP_IDS: readonly unknown[] = ['clean-eating']
 const BACKUP_VERSION = 1
 
 export type Backup = {
@@ -15,7 +17,7 @@ export function buildBackup(items: ShoppingItem[], now = new Date()): Backup {
 }
 
 export function backupFileName(now = new Date()): string {
-  return `clean-eating-${now.toISOString().slice(0, 10)}.json`
+  return `whole-cart-${now.toISOString().slice(0, 10)}.json`
 }
 
 export class BackupError extends Error {}
@@ -64,8 +66,8 @@ export function parseBackup(text: string): Backup {
     throw new BackupError("Ce fichier n'est pas un fichier JSON valide.")
   }
 
-  if (!isRecord(data) || data.app !== APP_ID) {
-    throw new BackupError("Ce fichier n'est pas une sauvegarde Clean Eating.")
+  if (!isRecord(data) || (data.app !== APP_ID && !LEGACY_APP_IDS.includes(data.app))) {
+    throw new BackupError("Ce fichier n'est pas une sauvegarde Whole Cart.")
   }
   if (typeof data.version !== 'number' || data.version > BACKUP_VERSION) {
     throw new BackupError('Cette sauvegarde vient d’une version plus récente de l’app.')

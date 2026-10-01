@@ -5,7 +5,7 @@ import type { ShoppingItem } from '../types'
  * Local database, stored in the browser's IndexedDB (works offline, survives reloads).
  * Dexie is a thin, typed wrapper around the raw IndexedDB API, which is very verbose.
  */
-export const db = new Dexie('clean-eating') as Dexie & {
+export const db = new Dexie('whole-cart') as Dexie & {
   items: EntityTable<ShoppingItem, 'id'>
 }
 

@@ -19,9 +19,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'Clean Eating',
-        short_name: 'Clean Eating',
-        description: 'Des courses les moins transformées possible.',
+        name: 'Whole Cart',
+        short_name: 'Whole Cart',
+        description: 'Les produits les moins industriels pour chaque article de ta liste.',
         lang: 'fr',
         start_url: '/',
         display: 'standalone',

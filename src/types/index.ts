@@ -22,8 +22,3 @@ export type ShoppingItem = {
   checked: boolean
   createdAt: number
 }
-
-export type Settings = {
-  store: string // Open Food Facts store tag, e.g. "carrefour"
-  maxNova: 1 | 2 | 3
-}

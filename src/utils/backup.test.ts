@@ -22,8 +22,13 @@ describe('backup round trip', () => {
     expect(parseBackup(text).items).toEqual(items)
   })
 
+  it('accepts backups made under the old app name', () => {
+    const text = JSON.stringify({ ...buildBackup(items, date), app: 'clean-eating' })
+    expect(parseBackup(text).items).toEqual(items)
+  })
+
   it('names the file with the date', () => {
-    expect(backupFileName(date)).toBe('clean-eating-2026-09-26.json')
+    expect(backupFileName(date)).toBe('whole-cart-2026-09-26.json')
   })
 })
 

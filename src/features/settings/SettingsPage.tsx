@@ -71,8 +71,6 @@ export function SettingsPage() {
           </p>
         )}
       </section>
-
-      <p className="mt-6 text-sm text-stone-500">Le choix de l'enseigne arrive à l'étape 3.</p>
     </Page>
   )
 }

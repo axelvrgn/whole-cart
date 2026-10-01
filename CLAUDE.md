@@ -1,22 +1,26 @@
-# CLAUDE.md — Clean Eating (PWA)
+# CLAUDE.md — Whole Cart (PWA)
 
-> Nom de l’application : « Clean Eating ».
+> Nom de l'application : « Whole Cart ». Repo GitHub : `axelvrgn/whole-cart`.
 
 ## 🎯 Le projet
 
-PWA mobile qui génère une **liste de courses privilégiant les produits les moins transformés possible**, adaptée à l'**enseigne choisie** par l'utilisateur, et qui permet de **scanner un produit en rayon** pour vérifier son niveau de transformation et proposer une alternative plus brute.
+PWA mobile : **je saisis ma liste de courses** (« yaourt », « thon », « pâtes »…) et, pour chaque article, l'app va chercher sur **Open Food Facts** les **références les moins industrielles** et me propose un **top 3**.
 
-La différence avec Yuka / Open Food Facts : ces applis *notent* un produit. Celle-ci *construit la liste de courses*.
+But : savoir quel produit prendre en rayon **sans perdre de temps à comparer** tous les produits du magasin. Le n°1 est affiché directement ; si il n'est pas en rayon, les n°2 et n°3 servent de solution de repli.
+
+La différence avec Yuka / Open Food Facts : ces applis *notent* un produit qu'on a déjà en main. Celle-ci part de **ce que je veux acheter** et me dit **quoi prendre**.
+
+**Hors périmètre** (abandonné) : scan de code-barres, choix de l'enseigne. Ne pas les réintroduire sans demande explicite.
 
 ### Utilisateur cible (V1)
 - Usage **personnel**, par le développeur lui-même.
 - Testé sur **iPhone, Safari**, installé via *Partager → Sur l'écran d'accueil*.
 - Pas de compte développeur Apple : c'est pour ça qu'on fait une PWA et pas une appli native.
-- Profil : sportif, veut cuisiner simple (batch cooking, plats au four), pas de recettes compliquées.
+- Profil : sportif, veut cuisiner simple (batch cooking, plats au four).
 
 ### Le développeur
 - Développeur **junior fullstack**. Explique les choix techniques non évidents en quelques lignes, sans jargon inutile.
-- Préfère comprendre ce qui est fait : quand tu introduis un nouveau concept (service worker, IndexedDB…), ajoute un bref commentaire ou une explication.
+- Préfère comprendre ce qui est fait : quand tu introduis un nouveau concept, ajoute un bref commentaire ou une explication.
 
 ---
 
@@ -27,70 +31,69 @@ La différence avec Yuka / Open Food Facts : ces applis *notent* un produit. Cel
 | Build | **Vite** | Rapide, simple |
 | UI | **React + TypeScript** | Standard, typage des réponses API |
 | PWA | **vite-plugin-pwa** (Workbox) | Manifest + service worker générés |
-| Scan code-barres | **@zxing/browser** | Safari iOS ne supporte PAS l'API native `BarcodeDetector` |
-| Stockage local | **Dexie** (IndexedDB) | Liste de courses dispo hors ligne |
+| Stockage local | **Dexie** (IndexedDB) | Liste et cache des recherches, dispo hors ligne |
 | Styles | **Tailwind CSS** | Rapide pour du mobile-first |
 | Routing | **React Router** | Quelques écrans seulement |
 | Tests | **Vitest** | Intégré à Vite |
-| Hébergement | **Vercel** (ou Netlify) | Gratuit, HTTPS automatique |
+| Hébergement | **Vercel** | Gratuit, HTTPS automatique, redéploie à chaque push |
 
-**Pas de backend en V1** : l'app appelle directement l'API Open Food Facts depuis le navigateur. Un backend (Node + PostgreSQL) viendra plus tard, pour le cache et le crowdsourcing.
+**Pas de backend en V1** : l'app appelle Open Food Facts depuis le navigateur. Si une API n'autorise pas les appels depuis le navigateur (CORS), passer par une **réécriture Vercel** (`vercel.json`, même origine) et le **proxy Vite** en dev, pas par un serveur.
 
 Ne pas ajouter de dépendance lourde sans le signaler et expliquer pourquoi.
 
 ---
 
-## 📱 Contraintes iPhone / Safari (IMPORTANT)
+## 📱 Contraintes iPhone / Safari
 
-- **HTTPS obligatoire** pour accéder à la caméra. En local, lancer Vite avec `--host` et utiliser un certificat (`@vitejs/plugin-basic-ssl`) pour tester sur l'iPhone via le Wi-Fi.
-- **Pas de `BarcodeDetector`** sur Safari → toujours passer par ZXing.
-- Caméra : utiliser la caméra arrière (`facingMode: "environment"`), et **arrêter proprement le flux** en quittant l'écran de scan (sinon la caméra reste allumée).
-- La vidéo doit avoir `playsInline` et `muted`, sinon iOS l'ouvre en plein écran.
-- PWA installée : le stockage peut être purgé par iOS si l'app n'est pas utilisée pendant longtemps. Prévoir un **export/import JSON** de la liste et des préférences.
-- Prévoir les *safe areas* (encoche) : `viewport-fit=cover` + `env(safe-area-inset-*)`.
-- Balises iOS dans `index.html` : `apple-mobile-web-app-capable`, `apple-touch-icon`, `theme-color`.
-- **Mobile-first** : grosses zones tactiles (≥ 44px), utilisable à une main en magasin.
+- PWA installée : le stockage peut être purgé par iOS si l'app n'est pas utilisée longtemps → **export/import JSON** de la liste (fait, écran Réglages).
+- *Safe areas* (encoche) : `viewport-fit=cover` + `env(safe-area-inset-*)`.
+- Champs de saisie en **16px minimum** (`text-base`), sinon Safari zoome au focus.
+- **Mobile-first** : zones tactiles ≥ 44px, utilisable à une main en magasin.
+- Hors ligne : la liste et les produits déjà trouvés doivent rester consultables sans réseau.
 
 ---
 
 ## 🌐 Source de données : Open Food Facts
 
-API gratuite et ouverte. Documentation : https://openfoodfacts.github.io/openfoodfacts-server/api/
+Documentation : https://openfoodfacts.github.io/openfoodfacts-server/api/
 
-### Endpoints utiles
-- **Produit par code-barres** :
-  `GET https://world.openfoodfacts.org/api/v2/product/{barcode}?fields=code,product_name,brands,nova_group,nutriscore_grade,ingredients_text,additives_tags,stores_tags,image_front_small_url,categories_tags`
-- **Recherche** (ex. alternatives peu transformées dans une catégorie et une enseigne) :
-  `GET https://world.openfoodfacts.org/api/v2/search?categories_tags={cat}&nova_groups_tags=1&stores_tags={enseigne}&fields=...`
+### Deux façons de chercher (testées le 2026-10-01)
+1. **Par catégorie** (fiable, à privilégier) — API v2, **CORS OK** depuis le navigateur :
+   `GET https://world.openfoodfacts.org/api/v2/search?categories_tags_en=plain-yogurts&countries_tags_en=france&page_size=50&fields=...`
+2. **Texte libre** (repli, approximatif) — search-a-licious, **pas de CORS** → passer par une réécriture Vercel / proxy Vite :
+   `GET https://search.openfoodfacts.org/search?q=yaourt countries_tags:"en:france"&langs=fr&fields=...`
+   ⚠️ Très bruité : « pâtes » renvoie du beurre de cacahuète et du camembert. Ne l'utiliser que si le mot est absent du dictionnaire, en affichant « résultats approximatifs ».
 
 ### Règles
-- **Toujours** limiter les champs avec `fields=` (les réponses complètes sont énormes).
-- Envoyer un **User-Agent identifiable** (ex. `CleanEating/0.1 (email@exemple.com)`), comme le demande Open Food Facts. Dans le navigateur, si le header n'est pas modifiable, le mettre dans un paramètre ou le prévoir pour le futur backend.
-- **Respecter les limites de requêtes** (la recherche est bien plus limitée que la lecture d'un produit — vérifier les chiffres à jour dans la doc). Mettre les résultats **en cache** dans IndexedDB.
-- Les données sont communautaires : **tout champ peut être absent**. Gérer `nova_group` manquant (afficher « Inconnu », ne pas planter).
-- `stores_tags` est **incomplet** : ne jamais présenter la disponibilité en magasin comme une certitude. Formuler « vu chez… ».
+- **Toujours** limiter les champs avec `fields=`.
+- **Limites** : 10 recherches / min / IP, 15 lectures produit / min / IP. Le serveur de recherche renvoie parfois une page HTML « temporarily unavailable » → **file d'attente** qui espace les requêtes, **cache** IndexedDB (~7 jours), et état « Réessayer » sans bloquer la liste.
+- User-Agent identifiable souhaité (`WholeCart/0.1 (axelvrgn.dev@gmail.com)`) ; non modifiable dans le navigateur, à prévoir si un backend arrive.
+- Données communautaires : **tout champ peut être absent**. `nova_group` manquant → « Inconnu », ne jamais planter.
+- `stores_tags` est très incomplet (0 « carrefour » sur les 50 yaourts nature les plus scannés) → ne pas s'en servir pour filtrer.
 
 ### Groupes NOVA
-1. Aliments bruts ou peu transformés (légumes, œufs, viande, lait, légumineuses)
+1. Aliments bruts ou peu transformés
 2. Ingrédients culinaires (huile, beurre, sel, sucre)
-3. Aliments transformés (pain de boulangerie, fromage, conserves simples)
-4. Ultra-transformés (à éviter : additifs, arômes, émulsifiants, sirops…)
+3. Aliments transformés (conserves simples, fromage, pain)
+4. Ultra-transformés (additifs, arômes, émulsifiants…)
 
-Code couleur conseillé : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
+Code couleur : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
 
 ---
 
-## 🧠 Logique métier clé
+## 🧠 Logique métier
 
-La liste de courses générée a **deux parties** :
-
-1. **Produits bruts** (sans code-barres le plus souvent) : fruits et légumes **de saison**, œufs, viande/poisson à la coupe, pain de boulangerie, légumineuses et féculents en vrac. → Viennent d'une **liste statique locale** (fichier JSON dans le repo), avec un calendrier de saisonnalité par mois (France).
-2. **Produits emballés** : pour chaque besoin (ex. « yaourt nature », « flocons d'avoine », « thon en conserve »), l'app propose la **meilleure option NOVA 1–2** trouvée pour l'enseigne choisie, avec repli sur NOVA 3 si rien de mieux, et jamais NOVA 4 sans avertissement.
-
-### Scan en rayon
-- Scanner → fiche produit (nom, image, NOVA, Nutri-Score, additifs).
-- Si NOVA 3 ou 4 : proposer des **alternatives moins transformées** de la même catégorie, en priorité dans l'enseigne choisie.
-- Bouton « Ajouter à la liste ».
+1. **Saisie libre** d'un article dans la liste.
+2. **Dictionnaire local** (`src/data/`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Gère pluriels / accents / synonymes. Les produits bruts sans emballage (courgette, œufs à la pièce…) peuvent être marqués « pas de recherche ».
+3. **Recherche** : par catégorie si le mot est connu, sinon texte libre (approximatif).
+4. **Classement** (fonction pure testée), du moins au plus industriel :
+   1. exclure les produits sans nom ;
+   2. **NOVA** le plus bas (inconnu en dernier, NOVA 4 seulement si rien d'autre, avec avertissement) ;
+   3. **moins d'additifs** ;
+   4. **liste d'ingrédients la plus courte** ;
+   5. popularité (nombre de scans) pour départager.
+   → Le NOVA seul ne suffit pas : tous les thons en conserve sont NOVA 3, mais « thon, eau, sel » bat « thon, huile, arômes ».
+5. **Affichage** : le n°1 sous l'article (photo, marque, nom, badge NOVA) ; toucher la ligne → **top 3**, avec possibilité de choisir un autre produit.
 
 ---
 
@@ -98,83 +101,42 @@ La liste de courses générée a **deux parties** :
 
 ```
 src/
-  api/            # Client Open Food Facts (fetch typé, cache)
-  db/             # Dexie : schéma et accès IndexedDB
-  data/           # JSON statiques : produits bruts, saisonnalité, enseignes
+  api/            # Client Open Food Facts (fetch typé, file d'attente, cache)
+  db/             # Dexie : schéma IndexedDB
+  data/           # JSON statiques : dictionnaire mot → catégorie OFF
   features/
-    list/         # Liste de courses (génération, cochage, export)
-    scan/         # Scanner ZXing + fiche produit
-    settings/     # Enseigne choisie, préférences
-  components/     # UI réutilisable (NovaBadge, ProductCard…)
+    list/         # Liste de courses (saisie, cochage, produits proposés)
+    settings/     # Sauvegarde / restauration
+  components/     # UI réutilisable (NovaBadge, Page, BottomNav…)
   hooks/
   types/          # Types TypeScript (Product, ShoppingItem…)
-  utils/
-```
-
-### Modèle de données (indicatif)
-```ts
-type Product = {
-  code: string;
-  name: string;
-  brand?: string;
-  nova?: 1 | 2 | 3 | 4;
-  nutriscore?: 'a' | 'b' | 'c' | 'd' | 'e';
-  additives: string[];
-  stores: string[];
-  imageUrl?: string;
-};
-
-type ShoppingItem = {
-  id: string;
-  label: string;              // "Yaourt nature", "Courgettes"
-  kind: 'raw' | 'packaged';
-  product?: Product;          // pour les produits emballés
-  quantity?: string;
-  checked: boolean;
-  createdAt: number;
-};
-
-type Settings = {
-  store: string;              // tag OFF de l'enseigne, ex. "carrefour"
-  maxNova: 1 | 2 | 3;
-};
+  utils/          # Fonctions pures (nova, backup, classement…)
 ```
 
 ---
 
 ## 🗺️ Feuille de route
 
-**Étape 0 — Setup**
-- Vite + React + TS + Tailwind + vite-plugin-pwa
-- Manifest, icônes, balises iOS
-- HTTPS en local pour tester sur l'iPhone
-- Déploiement Vercel
+**Fait**
+- Setup : Vite, React, TS, Tailwind, PWA, icônes, balises iOS, HTTPS local, Docker
+- Liste de courses : ajout, cochage, suppression, hors ligne (Dexie), export/import JSON
 
-**Étape 1 — Scan**
-- Écran scanner ZXing (caméra arrière, arrêt propre)
-- Appel API produit + fiche avec badge NOVA
-- Gestion des erreurs : produit introuvable, pas de réseau, caméra refusée
+**Étape A — Moteur de recherche**
+- Dictionnaire d'aliments courants → catégorie OFF
+- Client OFF : recherche par catégorie + repli texte libre (réécriture Vercel / proxy Vite), file d'attente, cache
+- Fonction de classement testée
 
-**Étape 2 — Liste de courses**
-- Ajout manuel, cochage, suppression
-- Persistance Dexie, fonctionne **hors ligne**
-- Export/import JSON
+**Étape B — Branchement sur la liste**
+- Recherche automatique à l'ajout d'un article
+- N°1 sous l'article, top 3 au toucher, choix d'un autre produit
+- États : recherche en cours, aucun résultat, erreur / hors ligne → Réessayer
 
-**Étape 3 — Choix de l'enseigne**
-- Écran réglages (liste d'enseignes françaises courantes)
-
-**Étape 4 — Génération de liste**
-- Produits bruts de saison depuis le JSON local
-- Produits emballés : recherche des meilleures options NOVA par enseigne
-- Cache des résultats
-
-**Étape 5 — Alternatives**
-- Depuis un produit NOVA 3–4, proposer des alternatives plus brutes
+**Étape C — Déploiement**
+- Vercel relié au repo GitHub, test sur iPhone installé
 
 **Plus tard**
-- Idées de recettes simples / mode batch cooking à partir de la liste
-- Backend (Node + PostgreSQL) pour cache partagé et crowdsourcing (« j'ai vu ce produit dans ce magasin »)
-- Éventuel passage à Expo / React Native en réutilisant `api/`, `types/` et la logique métier
+- Recettes simples / batch cooking → génèrent la liste
+- Apprendre de mes choix (si je choisis souvent le n°2, le remonter)
 
 ---
 
@@ -182,11 +144,11 @@ type Settings = {
 
 - TypeScript **strict**, pas de `any` sans justification.
 - Composants fonctionnels + hooks.
-- Logique métier (scoring, génération de liste) dans des **fonctions pures testées** avec Vitest, séparées de l'UI.
+- Logique métier (dictionnaire, classement) dans des **fonctions pures testées** avec Vitest, séparées de l'UI.
 - Textes de l'interface **en français**.
 - Code, noms de variables et commits en anglais.
-- Commits courts et clairs (style Conventional Commits : `feat:`, `fix:`, `chore:`…).
-- Avancer **étape par étape** selon la feuille de route : ne pas tout coder d'un coup, proposer un plan avant une grosse fonctionnalité.
+- Commits courts et clairs (Conventional Commits : `feat:`, `fix:`, `chore:`…).
+- Avancer **étape par étape** : proposer un plan avant une grosse fonctionnalité.
 
 ## ⌨️ Commandes
 
@@ -205,10 +167,11 @@ docker compose run --rm --service-ports app npm run preview -- --host   # tester
 
 - Depuis Git Bash, préfixer par `MSYS_NO_PATHCONV=1` si un chemin `/app` est mal converti.
 - Le watcher Vite utilise le polling (`DOCKER=true`) : les événements fichiers Windows ne traversent pas le montage.
-- `node_modules` contient des binaires Linux (esbuild, rolldown…) : ne pas lancer `npm install` côté Windows sur le même dossier.
+- `node_modules` contient des binaires Linux : ne pas lancer `npm install` côté Windows sur le même dossier.
+- Git : remote en SSH (`git@github.com:axelvrgn/whole-cart.git`), clé protégée par phrase de passe → c'est le développeur qui fait les `git push`.
 
 ## 🧪 Tester sur l'iPhone
 
-1. `docker compose up -d` (HTTPS auto-signé + écoute réseau déjà configurés dans `vite.config.ts`).
-2. Sur l'iPhone (même Wi-Fi), ouvrir `https://<IP du PC>:5173` dans Safari (l'IP affichée par Vite est celle du conteneur, pas la bonne ; prendre l'IP Wi-Fi du PC via `ipconfig`) et accepter le certificat.
-3. Pour tester l'installation PWA et le hors ligne : déployer sur Vercel, puis *Partager → Sur l'écran d'accueil*.
+1. `docker compose up -d` (HTTPS auto-signé + écoute réseau configurés dans `vite.config.ts`).
+2. Sur l'iPhone (même Wi-Fi), ouvrir `https://<IP Wi-Fi du PC>:5173` dans Safari (pas l'IP affichée par Vite, qui est celle du conteneur) et accepter le certificat.
+3. Pour l'installation PWA et le hors ligne : URL Vercel, puis *Partager → Sur l'écran d'accueil*.
