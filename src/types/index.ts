@@ -2,14 +2,17 @@ export type NovaGroup = 1 | 2 | 3 | 4
 
 export type NutriScore = 'a' | 'b' | 'c' | 'd' | 'e'
 
+/** A packaged product from Open Food Facts. Community data: anything optional may be missing. */
 export type Product = {
-  code: string
+  code: string // barcode
   name: string
   brand?: string
   nova?: NovaGroup
   nutriscore?: NutriScore
-  additives: string[]
-  stores: string[]
+  additivesCount?: number
+  ingredientsCount?: number
+  popularity?: number // number of scans on Open Food Facts
+  packaging?: string // e.g. "4 x 125 g"
   imageUrl?: string
 }
 

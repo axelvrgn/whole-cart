@@ -8,7 +8,7 @@ const items: ShoppingItem[] = [
     id: '2',
     label: 'Yaourt nature',
     kind: 'packaged',
-    product: { code: '123', name: 'Yaourt', nova: 1, additives: [], stores: ['carrefour'] },
+    product: { code: '123', name: 'Yaourt', nova: 1, additivesCount: 0 },
     checked: true,
     createdAt: 2,
   },

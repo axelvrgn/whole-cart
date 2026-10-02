@@ -5,6 +5,19 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Forwards /off-search/* to the Open Food Facts search server. Their server doesn't
+// accept calls from other websites (CORS), but a same-origin path relayed by our own
+// server is fine. In production, vercel.json does the same job.
+const offSearchProxy = {
+  '/off-search': {
+    target: 'https://search.openfoodfacts.org',
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/off-search/, ''),
+    // OFF asks apps to identify themselves; possible here, not from the browser.
+    headers: { 'User-Agent': 'WholeCart/0.1 (axelvrgn.dev@gmail.com)' },
+  },
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -42,11 +55,13 @@ export default defineConfig({
     strictPort: true,
     // Inside Docker on Windows, file change events don't cross into the container: poll instead.
     watch: process.env.DOCKER ? { usePolling: true, interval: 300 } : undefined,
+    proxy: offSearchProxy,
   },
   preview: {
     host: true,
     port: 4173,
     strictPort: true,
+    proxy: offSearchProxy,
   },
   test: {
     environment: 'node',

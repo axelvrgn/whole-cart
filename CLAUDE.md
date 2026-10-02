@@ -57,17 +57,18 @@ Ne pas ajouter de dépendance lourde sans le signaler et expliquer pourquoi.
 
 Documentation : https://openfoodfacts.github.io/openfoodfacts-server/api/
 
-### Deux façons de chercher (testées le 2026-10-01)
-1. **Par catégorie** (fiable, à privilégier) — API v2, **CORS OK** depuis le navigateur :
-   `GET https://world.openfoodfacts.org/api/v2/search?categories_tags_en=plain-yogurts&countries_tags_en=france&page_size=50&fields=...`
-2. **Texte libre** (repli, approximatif) — search-a-licious, **pas de CORS** → passer par une réécriture Vercel / proxy Vite :
-   `GET https://search.openfoodfacts.org/search?q=yaourt countries_tags:"en:france"&langs=fr&fields=...`
-   ⚠️ Très bruité : « pâtes » renvoie du beurre de cacahuète et du camembert. Ne l'utiliser que si le mot est absent du dictionnaire, en affichant « résultats approximatifs ».
+### Comment on cherche (testé le 2026-10-01)
+On utilise **uniquement search-a-licious** (`https://search.openfoodfacts.org/search`) : rapide (~0,2 s), il filtre par catégorie **et** en texte libre. L'ancienne API v2 `/api/v2/search` renvoyait souvent une page « temporarily unavailable » : abandonnée.
+- **Pas de CORS** → l'app appelle `/off-search/search`, relayé vers OFF par le **proxy Vite** (dev, `vite.config.ts`) et une **réécriture Vercel** (prod, `vercel.json`).
+- **Par catégorie** (mot connu du dictionnaire) : `q=categories_tags:"en:plain-yogurts" AND countries_tags:"en:france" AND lang:fr AND nova_group:[1 TO 3]`, `sort_by=-unique_scans_n`, `page_size=50`. Les 50 produits les plus scannés = ceux qu'on trouve en rayon. Si 0 résultat, on relance sans le filtre NOVA (NOVA 4 avec avertissement).
+- **Texte libre** (mot inconnu) : même filtres, tri par pertinence (pas par popularité). Résultats « approximatifs ».
+- `lang:fr` est indispensable : sans lui, des produits Tesco ou Lidl Allemagne marqués « vendu en France » sortent en tête.
+- Code : `src/api/offSearch.ts` (requêtes et conversion, pur) et `src/api/productSearch.ts` (fetch, file d'attente, cache).
 
 ### Règles
 - **Toujours** limiter les champs avec `fields=`.
-- **Limites** : 10 recherches / min / IP, 15 lectures produit / min / IP. Le serveur de recherche renvoie parfois une page HTML « temporarily unavailable » → **file d'attente** qui espace les requêtes, **cache** IndexedDB (~7 jours), et état « Réessayer » sans bloquer la liste.
-- User-Agent identifiable souhaité (`WholeCart/0.1 (axelvrgn.dev@gmail.com)`) ; non modifiable dans le navigateur, à prévoir si un backend arrive.
+- **Limites** : documentées pour l'API classique (10 recherches / min / IP), pas pour search-a-licious → file d'attente à **1 requête / 2 s**, **cache** IndexedDB de 7 jours (et résultat périmé réutilisé si le réseau tombe), état « Réessayer » sans bloquer la liste. OFF a aussi des pannes (page HTML, délais dépassés) : toujours vérifier que la réponse est du JSON.
+- User-Agent identifiable (`WholeCart/0.1 (axelvrgn.dev@gmail.com)`) : ajouté par le proxy Vite ; impossible depuis le navigateur ni via une réécriture Vercel.
 - Données communautaires : **tout champ peut être absent**. `nova_group` manquant → « Inconnu », ne jamais planter.
 - `stores_tags` est très incomplet (0 « carrefour » sur les 50 yaourts nature les plus scannés) → ne pas s'en servir pour filtrer.
 
@@ -84,13 +85,13 @@ Code couleur : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
 ## 🧠 Logique métier
 
 1. **Saisie libre** d'un article dans la liste.
-2. **Dictionnaire local** (`src/data/`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Gère pluriels / accents / synonymes. Les produits bruts sans emballage (courgette, œufs à la pièce…) peuvent être marqués « pas de recherche ».
+2. **Dictionnaire local** (`src/data/foods.ts`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Ignore majuscules / accents / pluriels, le terme le plus précis gagne (« riz complet » > « riz »). Les produits frais sans emballage (courgettes, pommes…) n'ont pas de catégorie → pas de recherche. **Toute nouvelle catégorie doit être vérifiée** dans la taxonomie officielle (`https://static.openfoodfacts.org/data/taxonomies/categories.json`).
 3. **Recherche** : par catégorie si le mot est connu, sinon texte libre (approximatif).
 4. **Classement** (fonction pure testée), du moins au plus industriel :
-   1. exclure les produits sans nom ;
-   2. **NOVA** le plus bas (inconnu en dernier, NOVA 4 seulement si rien d'autre, avec avertissement) ;
-   3. **moins d'additifs** ;
-   4. **liste d'ingrédients la plus courte** ;
+   1. exclure les produits sans nom et les doublons (même code-barres, ou même nom + marque) ;
+   2. **NOVA** : 1, 2, 3, puis inconnu, puis 4 (NOVA 4 seulement si rien d'autre, avec avertissement) ;
+   3. **moins d'additifs** (champ absent = 0 : OFF l'omet quand il n'y en a pas) ;
+   4. **liste d'ingrédients la plus courte** (inconnue = en dernier) ;
    5. popularité (nombre de scans) pour départager.
    → Le NOVA seul ne suffit pas : tous les thons en conserve sont NOVA 3, mais « thon, eau, sel » bat « thon, huile, arômes ».
 5. **Affichage** : le n°1 sous l'article (photo, marque, nom, badge NOVA) ; toucher la ligne → **top 3**, avec possibilité de choisir un autre produit.
@@ -121,9 +122,9 @@ src/
 - Setup : Vite, React, TS, Tailwind, PWA, icônes, balises iOS, HTTPS local, Docker
 - Liste de courses : ajout, cochage, suppression, hors ligne (Dexie), export/import JSON
 
-**Étape A — Moteur de recherche**
-- Dictionnaire d'aliments courants → catégorie OFF
-- Client OFF : recherche par catégorie + repli texte libre (réécriture Vercel / proxy Vite), file d'attente, cache
+**Étape A — Moteur de recherche** ✅
+- Dictionnaire de ~120 aliments (88 catégories OFF vérifiées)
+- Client OFF : catégorie + repli texte libre via proxy, file d'attente, cache 7 jours
 - Fonction de classement testée
 
 **Étape B — Branchement sur la liste**

@@ -34,9 +34,7 @@ function isProduct(value: unknown): value is Product {
   return (
     isRecord(value) &&
     typeof value.code === 'string' &&
-    typeof value.name === 'string' &&
-    Array.isArray(value.additives) &&
-    Array.isArray(value.stores)
+    typeof value.name === 'string'
   )
 }
 
