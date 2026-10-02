@@ -1,4 +1,4 @@
-import type { Product, ShoppingItem } from '../types'
+import type { ItemSearch, Product, ShoppingItem } from '../types'
 
 const APP_ID = 'whole-cart'
 // Backups made before the app was renamed are still accepted.
@@ -38,6 +38,22 @@ function isProduct(value: unknown): value is Product {
   )
 }
 
+function isItemSearch(value: unknown): value is ItemSearch {
+  if (!isRecord(value)) return false
+  switch (value.status) {
+    case 'pending':
+      return true
+    case 'found':
+      return Array.isArray(value.alternatives) && value.alternatives.every(isProduct) && typeof value.approximate === 'boolean'
+    case 'not-found':
+      return typeof value.approximate === 'boolean'
+    case 'error':
+      return value.reason === 'offline' || value.reason === 'unavailable'
+    default:
+      return false
+  }
+}
+
 function isShoppingItem(value: unknown): value is ShoppingItem {
   return (
     isRecord(value) &&
@@ -48,7 +64,8 @@ function isShoppingItem(value: unknown): value is ShoppingItem {
     typeof value.checked === 'boolean' &&
     typeof value.createdAt === 'number' &&
     isOptionalString(value.quantity) &&
-    (value.product === undefined || isProduct(value.product))
+    (value.product === undefined || isProduct(value.product)) &&
+    (value.search === undefined || isItemSearch(value.search))
   )
 }
 

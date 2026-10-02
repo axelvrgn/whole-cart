@@ -78,6 +78,31 @@ describe('pickTopProducts', () => {
     expect(codes(top)).toEqual(['b', 'a'])
   })
 
+  it('gives each brand a spot before a second product of the same brand', () => {
+    const top = pickTopProducts([
+      product('navire1', { brand: 'Petit Navire', nova: 3, ingredientsCount: 3, popularity: 228 }),
+      product('navire2', { brand: 'Petit Navire', nova: 3, ingredientsCount: 3, popularity: 132 }),
+      product('navire3', { brand: 'petit navire', nova: 3, ingredientsCount: 3, popularity: 121 }),
+      product('saupiquet', { brand: 'Saupiquet', nova: 3, ingredientsCount: 4 }),
+      product('u', { brand: 'U', nova: 3, ingredientsCount: 5 }),
+    ])
+    expect(codes(top)).toEqual(['navire1', 'saupiquet', 'u'])
+  })
+
+  it('fills remaining spots with same-brand products when there are few brands', () => {
+    const top = pickTopProducts([
+      product('a1', { brand: 'A', nova: 1, popularity: 3 }),
+      product('a2', { brand: 'A', nova: 1, popularity: 2 }),
+      product('b1', { brand: 'B', nova: 2 }),
+    ])
+    expect(codes(top)).toEqual(['a1', 'b1', 'a2'])
+  })
+
+  it('never groups products with an unknown brand', () => {
+    const top = pickTopProducts([product('x', { nova: 1, popularity: 2 }), product('y', { nova: 1, popularity: 1 })])
+    expect(codes(top)).toEqual(['x', 'y'])
+  })
+
   it('returns an empty list when there is nothing', () => {
     expect(pickTopProducts([])).toEqual([])
   })

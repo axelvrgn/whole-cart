@@ -25,11 +25,29 @@ export default defineConfig({
     tailwindcss(),
     // Self-signed HTTPS certificate: Safari only gives camera access on HTTPS pages.
     // The iPhone will show a warning the first time; accept it once.
-    basicSsl(),
+    // NO_HTTPS=1 serves plain HTTP instead (localhost counts as secure for browsers anyway).
+    process.env.NO_HTTPS ? null : basicSsl(),
     // Generates the web manifest and a service worker (a script that runs in the
     // background and caches the app files, so the app opens even without network).
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        // Product photos are kept 30 days, so the chosen products still show in the shop without network.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.origin === 'https://images.openfoodfacts.org',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'off-images',
+              expiration: { maxEntries: 300, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              // Images from another site come back "opaque" (status 0): accept them too.
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+        // API calls must never be answered with the app's index.html.
+        navigateFallbackDenylist: [/^\/off-search/],
+      },
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Whole Cart',

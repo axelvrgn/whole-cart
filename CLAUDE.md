@@ -61,7 +61,7 @@ Documentation : https://openfoodfacts.github.io/openfoodfacts-server/api/
 On utilise **uniquement search-a-licious** (`https://search.openfoodfacts.org/search`) : rapide (~0,2 s), il filtre par catégorie **et** en texte libre. L'ancienne API v2 `/api/v2/search` renvoyait souvent une page « temporarily unavailable » : abandonnée.
 - **Pas de CORS** → l'app appelle `/off-search/search`, relayé vers OFF par le **proxy Vite** (dev, `vite.config.ts`) et une **réécriture Vercel** (prod, `vercel.json`).
 - **Par catégorie** (mot connu du dictionnaire) : `q=categories_tags:"en:plain-yogurts" AND countries_tags:"en:france" AND lang:fr AND nova_group:[1 TO 3]`, `sort_by=-unique_scans_n`, `page_size=50`. Les 50 produits les plus scannés = ceux qu'on trouve en rayon. Si 0 résultat, on relance sans le filtre NOVA (NOVA 4 avec avertissement).
-- **Texte libre** (mot inconnu) : même filtres, tri par pertinence (pas par popularité). Résultats « approximatifs ».
+- **Texte libre** (mot inconnu) : chaque mot relié par `AND` (`lait AND de AND coco AND …`), mêmes filtres, tri par pertinence (pas par popularité). Résultats « approximatifs ». ⚠️ Avec des parenthèses ou de simples espaces, le serveur renvoie 0 résultat.
 - `lang:fr` est indispensable : sans lui, des produits Tesco ou Lidl Allemagne marqués « vendu en France » sortent en tête.
 - Code : `src/api/offSearch.ts` (requêtes et conversion, pur) et `src/api/productSearch.ts` (fetch, file d'attente, cache).
 
@@ -85,7 +85,7 @@ Code couleur : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
 ## 🧠 Logique métier
 
 1. **Saisie libre** d'un article dans la liste.
-2. **Dictionnaire local** (`src/data/foods.ts`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Ignore majuscules / accents / pluriels, le terme le plus précis gagne (« riz complet » > « riz »). Les produits frais sans emballage (courgettes, pommes…) n'ont pas de catégorie → pas de recherche. **Toute nouvelle catégorie doit être vérifiée** dans la taxonomie officielle (`https://static.openfoodfacts.org/data/taxonomies/categories.json`).
+2. **Dictionnaire local** (`src/data/foods.ts`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Ignore majuscules / accents / pluriels, le terme le plus précis gagne (« riz complet » > « riz »). Une phrase plus longue n'est reconnue que si les mots en plus sont **neutres** (bio, nature, quantités, « boîte de »…) : « lait de coco » ne doit pas devenir du lait de vache. Les produits frais sans emballage (courgettes, pommes…) n'ont pas de catégorie → pas de recherche. **Toute nouvelle catégorie doit être vérifiée** dans la taxonomie officielle (`https://static.openfoodfacts.org/data/taxonomies/categories.json`).
 3. **Recherche** : par catégorie si le mot est connu, sinon texte libre (approximatif).
 4. **Classement** (fonction pure testée), du moins au plus industriel :
    1. exclure les produits sans nom et les doublons (même code-barres, ou même nom + marque) ;
@@ -94,7 +94,8 @@ Code couleur : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
    4. **liste d'ingrédients la plus courte** (inconnue = en dernier) ;
    5. popularité (nombre de scans) pour départager.
    → Le NOVA seul ne suffit pas : tous les thons en conserve sont NOVA 3, mais « thon, eau, sel » bat « thon, huile, arômes ».
-5. **Affichage** : le n°1 sous l'article (photo, marque, nom, badge NOVA) ; toucher la ligne → **top 3**, avec possibilité de choisir un autre produit.
+5. **Top 3 = 3 marques différentes** si possible : le n°2 et le n°3 servent quand le n°1 n'est pas en rayon, et dans ce cas c'est souvent toute la marque qui manque (même marque seulement pour compléter).
+6. **Affichage** : le n°1 sous l'article (photo, marque, nom, format, badge NOVA) ; toucher → panneau **top 3** (`<dialog>` natif), choix d'un autre produit mémorisé dans l'article. Le produit choisi est stocké dans l'article → visible hors ligne ; les photos OFF sont mises en cache 30 jours par le service worker.
 
 ---
 
@@ -127,8 +128,8 @@ src/
 - Client OFF : catégorie + repli texte libre via proxy, file d'attente, cache 7 jours
 - Fonction de classement testée
 
-**Étape B — Branchement sur la liste**
-- Recherche automatique à l'ajout d'un article
+**Étape B — Branchement sur la liste** ✅
+- Recherche automatique à l'ajout d'un article (`searchRunner.ts`, reprend les recherches interrompues au relancement)
 - N°1 sous l'article, top 3 au toucher, choix d'un autre produit
 - États : recherche en cours, aucun résultat, erreur / hors ligne → Réessayer
 
@@ -167,6 +168,8 @@ docker compose run --rm --service-ports app npm run preview -- --host   # tester
 ```
 
 - Depuis Git Bash, préfixer par `MSYS_NO_PATHCONV=1` si un chemin `/app` est mal converti.
+- **Tester dans le navigateur intégré** (il refuse le certificat auto-signé) : serveur HTTP temporaire avec `NO_HTTPS=1` :
+  `docker run -d --rm --name wc-http -e DOCKER=true -e NO_HTTPS=1 -p 5180:5180 -v "G:/project/whole-cart:/app" -w /app node:24-alpine npx vite --port 5180` → http://localhost:5180, puis `docker stop wc-http`.
 - Le watcher Vite utilise le polling (`DOCKER=true`) : les événements fichiers Windows ne traversent pas le montage.
 - `node_modules` contient des binaires Linux : ne pas lancer `npm install` côté Windows sur le même dossier.
 - Git : remote en SSH (`git@github.com:axelvrgn/whole-cart.git`), clé protégée par phrase de passe → c'est le développeur qui fait les `git push`.

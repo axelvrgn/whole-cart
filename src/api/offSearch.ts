@@ -22,9 +22,15 @@ const FIELDS = [
   'image_front_small_url',
 ].join(',')
 
-// The query language is Lucene: these characters have a special meaning in free text.
-function escapeFreeText(text: string): string {
-  return text.replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, ' ').trim()
+// The query language is Lucene: these characters have a special meaning, drop them.
+// Every word is then required ("lait AND de AND coco"): with plain spaces or parentheses,
+// the search server returned nothing at all once combined with the filters.
+function freeTextQuery(text: string): string {
+  return text
+    .replace(/[+\-&|!(){}[\]^"~*?:\\/]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word && !['AND', 'OR', 'NOT'].includes(word))
+    .join(' AND ')
 }
 
 /**
@@ -44,7 +50,7 @@ export function buildSearchParams(query: OffQuery, { excludeUltraProcessed = tru
     params.set('sort_by', '-unique_scans_n')
   } else {
     // Free text keeps the default relevance order, otherwise unrelated popular products come first.
-    params.set('q', [`(${escapeFreeText(query.text)})`, ...filters].join(' AND '))
+    params.set('q', [freeTextQuery(query.text), ...filters].join(' AND '))
   }
   return params
 }
@@ -55,7 +61,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function nonEmptyString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
-  const text = value.trim()
+  // Some sheets contain escaped apostrophes: "C\'est qui le patron".
+  const text = value.replace(/\\'/g, "'").trim()
   return text && text !== 'null' ? text : undefined
 }
 

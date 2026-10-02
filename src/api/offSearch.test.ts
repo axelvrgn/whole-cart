@@ -17,10 +17,17 @@ describe('buildSearchParams', () => {
     expect(params.get('q')).not.toContain('nova_group')
   })
 
-  it('keeps relevance order for free text and neutralizes special characters', () => {
-    const params = buildSearchParams({ kind: 'text', text: 'kombucha (bio) -sucre "x"' })
-    expect(params.get('q')).toBe('(kombucha  bio   sucre  x) AND countries_tags:"en:france" AND lang:fr AND nova_group:[1 TO 3]')
+  it('requires every word of a free text, in relevance order', () => {
+    const params = buildSearchParams({ kind: 'text', text: 'lait de coco' })
+    expect(params.get('q')).toBe('lait AND de AND coco AND countries_tags:"en:france" AND lang:fr AND nova_group:[1 TO 3]')
     expect(params.has('sort_by')).toBe(false)
+  })
+
+  it('neutralizes query syntax typed by the user', () => {
+    const params = buildSearchParams({ kind: 'text', text: 'kombucha (bio) -sucre "x" OR y' })
+    expect(params.get('q')).toBe(
+      'kombucha AND bio AND sucre AND x AND y AND countries_tags:"en:france" AND lang:fr AND nova_group:[1 TO 3]',
+    )
   })
 })
 
@@ -70,6 +77,12 @@ describe('toProduct', () => {
     expect(product?.additivesCount).toBeUndefined()
     expect(product?.nutriscore).toBeUndefined()
     expect(product?.imageUrl).toBeUndefined()
+  })
+
+  it('unescapes apostrophes', () => {
+    expect(toProduct({ code: '1', product_name: 'Lait', brands: ["C\\'est qui le patron"] })?.brand).toBe(
+      "C'est qui le patron",
+    )
   })
 
   it('takes the first brand from a comma-separated string', () => {

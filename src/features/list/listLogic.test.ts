@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import type { ShoppingItem } from '../../types'
-import { countRemaining, createItem, sortItems } from './listLogic'
+import type { Product, ShoppingItem } from '../../types'
+import { applySearchResult, countRemaining, createItem, sortItems } from './listLogic'
 
 function item(id: string, createdAt: number, checked = false): ShoppingItem {
   return { id, label: id, kind: 'raw', checked, createdAt }
 }
 
 describe('createItem', () => {
-  it('builds an unchecked raw item', () => {
+  it('builds a raw item, without search, for a fresh product', () => {
     expect(createItem({ label: 'courgettes', quantity: '3' }, 1000, 'abc')).toEqual({
       id: 'abc',
       label: 'Courgettes',
@@ -16,6 +16,11 @@ describe('createItem', () => {
       checked: false,
       createdAt: 1000,
     })
+  })
+
+  it('builds a packaged item with a pending search for anything else', () => {
+    expect(createItem({ label: 'yaourt' })).toMatchObject({ kind: 'packaged', search: { status: 'pending' } })
+    expect(createItem({ label: 'kombucha' })).toMatchObject({ kind: 'packaged', search: { status: 'pending' } })
   })
 
   it('trims the label and collapses spaces', () => {
@@ -32,6 +37,29 @@ describe('createItem', () => {
 
   it('generates a different id each time', () => {
     expect(createItem({ label: 'a' })?.id).not.toBe(createItem({ label: 'a' })?.id)
+  })
+})
+
+describe('applySearchResult', () => {
+  const yaourt: Product = { code: '1', name: 'Yaourt nature', nova: 1 }
+  const skyr: Product = { code: '2', name: 'Skyr', nova: 1 }
+
+  it('selects the n°1 and keeps the alternatives', () => {
+    expect(applySearchResult({ status: 'found', products: [yaourt, skyr], approximate: false })).toEqual({
+      search: { status: 'found', alternatives: [yaourt, skyr], approximate: false },
+      product: yaourt,
+    })
+  })
+
+  it('clears the product when nothing was found', () => {
+    expect(applySearchResult({ status: 'not-found', products: [], approximate: true })).toEqual({
+      search: { status: 'not-found', approximate: true },
+      product: undefined,
+    })
+  })
+
+  it('turns the item into a raw one when there is nothing to search', () => {
+    expect(applySearchResult({ status: 'no-search' })).toEqual({ kind: 'raw', search: undefined, product: undefined })
   })
 })
 

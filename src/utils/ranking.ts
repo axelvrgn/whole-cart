@@ -37,9 +37,29 @@ export function rankProducts(products: readonly Product[]): Product[] {
     })
 }
 
-/** The best `count` products. NOVA 4 only shows up when nothing else exists. */
+/**
+ * The best `count` products. NOVA 4 only shows up when nothing else exists.
+ * Each brand gets one spot first: the n°2 and n°3 are the fallback when the n°1
+ * isn't on the shelf, and a missing product usually means the whole brand is missing.
+ * Same-brand products only fill the remaining spots.
+ */
 export function pickTopProducts(products: readonly Product[], count = 3): Product[] {
   const ranked = rankProducts(products)
   const notUltraProcessed = ranked.filter((product) => product.nova !== 4)
-  return (notUltraProcessed.length > 0 ? notUltraProcessed : ranked).slice(0, count)
+  const candidates = notUltraProcessed.length > 0 ? notUltraProcessed : ranked
+
+  const brands = new Set<string>()
+  const firstOfEachBrand: Product[] = []
+  const sameBrandAgain: Product[] = []
+  for (const product of candidates) {
+    const brand = normalizeText(product.brand ?? '')
+    // An unknown brand is never grouped with another one.
+    if (brand && brands.has(brand)) {
+      sameBrandAgain.push(product)
+    } else {
+      if (brand) brands.add(brand)
+      firstOfEachBrand.push(product)
+    }
+  }
+  return [...firstOfEachBrand, ...sameBrandAgain].slice(0, count)
 }

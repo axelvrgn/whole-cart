@@ -9,6 +9,11 @@ const items: ShoppingItem[] = [
     label: 'Yaourt nature',
     kind: 'packaged',
     product: { code: '123', name: 'Yaourt', nova: 1, additivesCount: 0 },
+    search: {
+      status: 'found',
+      alternatives: [{ code: '123', name: 'Yaourt', nova: 1, additivesCount: 0 }],
+      approximate: false,
+    },
     checked: true,
     createdAt: 2,
   },
@@ -42,6 +47,8 @@ describe('parseBackup errors', () => {
     ['items not an array', JSON.stringify({ ...valid, items: {} })],
     ['an item without label', JSON.stringify({ ...valid, items: [{ ...items[0], label: '' }] })],
     ['an item with a bad kind', JSON.stringify({ ...valid, items: [{ ...items[0], kind: 'x' }] })],
+    ['an unknown search status', JSON.stringify({ ...valid, items: [{ ...items[1], search: { status: 'x' } }] })],
+    ['broken alternatives', JSON.stringify({ ...valid, items: [{ ...items[1], search: { status: 'found', alternatives: [{}], approximate: false } }] })],
     ['a broken product', JSON.stringify({ ...valid, items: [{ ...items[1], product: { code: 1 } }] })],
   ])('rejects %s', (_, text) => {
     expect(() => parseBackup(text)).toThrow(BackupError)

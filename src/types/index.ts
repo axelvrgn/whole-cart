@@ -16,11 +16,19 @@ export type Product = {
   imageUrl?: string
 }
 
+/** Where the Open Food Facts search for a list item stands. */
+export type ItemSearch =
+  | { status: 'pending' }
+  | { status: 'found'; alternatives: Product[]; approximate: boolean } // best first, up to 3
+  | { status: 'not-found'; approximate: boolean }
+  | { status: 'error'; reason: 'offline' | 'unavailable' }
+
 export type ShoppingItem = {
   id: string
   label: string // "Yaourt nature", "Courgettes"
-  kind: 'raw' | 'packaged'
-  product?: Product // packaged products only
+  kind: 'raw' | 'packaged' // raw = fresh, loose product: nothing to search
+  product?: Product // the chosen product (the n°1 by default)
+  search?: ItemSearch // packaged items only
   quantity?: string
   checked: boolean
   createdAt: number

@@ -41,9 +41,17 @@ describe('matchFood', () => {
     expect(matchFood('sauce tomate')?.label).toBe('Sauce tomate')
   })
 
-  it('finds a known food inside a longer phrase', () => {
+  it('finds a known food inside a longer phrase made of neutral words', () => {
     expect(matchFood('yaourt nature bio')?.label).toBe('Yaourt nature')
     expect(matchFood('2 boîtes de thon')?.label).toBe('Thon en conserve')
+    expect(matchFood('pâtes 500g')?.label).toBe('Pâtes')
+    expect(matchFood('riz complet bio')?.label).toBe('Riz complet')
+  })
+
+  it('does not match when an extra word changes the product', () => {
+    expect(matchFood('lait de coco')).toBeUndefined()
+    expect(matchFood('yaourt à la fraise')).toBeUndefined()
+    expect(matchFood('chips de légumes')).toBeUndefined()
   })
 
   it('does not match parts of words', () => {

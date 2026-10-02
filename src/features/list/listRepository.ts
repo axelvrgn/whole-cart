@@ -1,5 +1,5 @@
 import { db } from '../../db/db'
-import type { ShoppingItem } from '../../types'
+import type { Product, ShoppingItem } from '../../types'
 
 // All reads and writes of the shopping list go through here, so screens never touch Dexie directly.
 
@@ -13,6 +13,20 @@ export async function addItem(item: ShoppingItem): Promise<void> {
 
 export async function setChecked(id: string, checked: boolean): Promise<void> {
   await db.items.update(id, { checked })
+}
+
+/** Merges changes into an item. A field set to undefined is removed. Does nothing if the item was deleted. */
+export async function updateItem(id: string, changes: Partial<ShoppingItem>): Promise<void> {
+  await db.items.update(id, changes)
+}
+
+export async function chooseProduct(id: string, product: Product): Promise<void> {
+  await db.items.update(id, { product })
+}
+
+/** Starts the search again (after an error, or to refresh old results). */
+export async function retrySearch(id: string): Promise<void> {
+  await db.items.update(id, { search: { status: 'pending' } })
 }
 
 export async function deleteItem(id: string): Promise<void> {
