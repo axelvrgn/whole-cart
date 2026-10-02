@@ -13,7 +13,7 @@ type Props = {
 }
 
 /**
- * Bottom sheet with the top 3. Built on the native <dialog> element: showModal() gives
+ * Panel with the top 3. Built on the native <dialog> element: showModal() gives
  * the dark backdrop, closing with Escape and keeping the focus inside, for free.
  */
 export function ProductPicker({ item, alternatives, approximate, onClose }: Props) {
@@ -35,9 +35,11 @@ export function ProductPicker({ item, alternatives, approximate, onClose }: Prop
       // A tap on the backdrop lands on the <dialog> itself (the panel content is inside it).
       onClick={(event) => event.target === dialogRef.current && dialogRef.current.close()}
       aria-labelledby="picker-title"
-      className="mx-auto mt-auto mb-0 max-h-[85dvh] w-full max-w-lg rounded-t-2xl bg-stone-50 p-0 backdrop:bg-black/40"
+      // Near the top of the screen (just below the notch) rather than stuck to the bottom,
+      // where Safari's toolbar hides part of it. Scrolls inside if taller than the screen.
+      className="mx-auto mt-[calc(env(safe-area-inset-top)+1rem)] mb-auto max-h-[calc(100dvh-env(safe-area-inset-top)-2rem)] w-[calc(100%-1.5rem)] max-w-lg rounded-2xl bg-stone-50 p-0 shadow-xl backdrop:bg-black/40"
     >
-      <div className="px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+      <div className="p-4">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
             <h2 id="picker-title" className="text-lg font-bold">
