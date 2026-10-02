@@ -85,8 +85,8 @@ Code couleur : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
 ## 🧠 Logique métier
 
 1. **Saisie libre** d'un article dans la liste.
-2. **Dictionnaire local** (`src/data/foods.ts`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Ignore majuscules / accents / pluriels, le terme le plus précis gagne (« riz complet » > « riz »). Une phrase plus longue n'est reconnue que si les mots en plus sont **neutres** (bio, nature, quantités, « boîte de »…) : « lait de coco » ne doit pas devenir du lait de vache. Les produits frais sans emballage (courgettes, pommes…) n'ont pas de catégorie → pas de recherche. **Toute nouvelle catégorie doit être vérifiée** dans la taxonomie officielle (`https://static.openfoodfacts.org/data/taxonomies/categories.json`).
-3. **Recherche** : par catégorie si le mot est connu, sinon texte libre (approximatif).
+2. **Dictionnaire local** (`src/data/foods.ts`) : mot courant → catégorie OFF précise (« yaourt » → `en:plain-yogurts`, « pâtes » → `en:dry-pastas`). Ignore majuscules / accents / pluriels, le terme le plus précis gagne (« riz complet » > « riz »). Une phrase plus longue n'est reconnue que si les mots en plus sont **neutres** (bio, nature, quantités, « boîte de », « fromage »…) : « lait de coco » ne doit pas devenir du lait de vache. Les **fautes d'une lettre** sur les mots de 5 lettres et plus sont corrigées si un seul mot du dictionnaire correspond (« emmenthal » → emmental) ; les fautes ambiguës fréquentes sont ajoutées comme termes (« compté » → comté, pas compote). Les produits frais sans emballage (courgettes, pommes…) n'ont pas de catégorie → pas de recherche. **Toute nouvelle catégorie doit être vérifiée** dans la taxonomie officielle (`https://static.openfoodfacts.org/data/taxonomies/categories.json`).
+3. **Recherche** : par catégorie si le mot est connu, sinon texte libre (approximatif). En texte libre, on ne garde que les produits dont le **nom (ou la marque) contient tous les mots significatifs** tapés : OFF renvoie sinon « Les pâtes à compter » pour « fromage compté ».
 4. **Classement** (fonction pure testée), du moins au plus industriel :
    1. exclure les produits sans nom et les doublons (même code-barres, ou même nom + marque) ;
    2. **NOVA** : 1, 2, 3, puis inconnu, puis 4 (NOVA 4 seulement si rien d'autre, avec avertissement) ;
@@ -95,7 +95,7 @@ Code couleur : 1 = vert, 2 = vert clair, 3 = orange, 4 = rouge, inconnu = gris.
    5. popularité (nombre de scans) pour départager.
    → Le NOVA seul ne suffit pas : tous les thons en conserve sont NOVA 3, mais « thon, eau, sel » bat « thon, huile, arômes ».
 5. **Top 3 = 3 marques différentes** si possible : le n°2 et le n°3 servent quand le n°1 n'est pas en rayon, et dans ce cas c'est souvent toute la marque qui manque (même marque seulement pour compléter).
-6. **Affichage** : le n°1 sous l'article (photo, marque, nom, format, badge NOVA) ; toucher → panneau **top 3** (`<dialog>` natif), choix d'un autre produit mémorisé dans l'article. Le produit choisi est stocké dans l'article → visible hors ligne ; les photos OFF sont mises en cache 30 jours par le service worker.
+6. **Affichage** : le n°1 sous l'article (photo, marque, nom, format, badge NOVA) ; toucher → panneau **top 3** (`<dialog>` natif), choix d'un autre produit mémorisé dans l'article. **« Voir plus de produits »** : +5 à chaque clic. Les 10 premiers sont enregistrés dans l'article (hors ligne), au-delà la liste complète (~50) vient du cache. Le produit choisi est stocké dans l'article → visible hors ligne ; les photos OFF sont mises en cache 30 jours par le service worker.
 
 ---
 
@@ -132,6 +132,15 @@ src/
 - Recherche automatique à l'ajout d'un article (`searchRunner.ts`, reprend les recherches interrompues au relancement)
 - N°1 sous l'article, top 3 au toucher, choix d'un autre produit
 - États : recherche en cours, aucun résultat, erreur / hors ligne → Réessayer
+
+**Améliorations faites après tests**
+- « fromage comté », fautes de frappe, filtre de pertinence en texte libre, « Voir plus de produits »
+
+**Idées en attente** (proposées, pas encore validées)
+- Filtrer le panneau par marque (« carrefour », « U », « nixe »…)
+- Départager les égalités avec les labels OFF : bio, AOP/AOC, lait cru, Label Rouge (tous les comtés sont NOVA 3, sans additif, 4 ingrédients → aujourd'hui c'est la popularité qui tranche)
+- Se méfier des fiches à 1–2 ingrédients (souvent incomplètes) ; dire franchement quand le top 3 est à égalité
+- Extrait OFF ciblé (script → JSON ~150 Ko des 88 catégories) pour zéro appel et du hors ligne dès le départ
 
 **Étape C — Déploiement**
 - Vercel relié au repo GitHub, test sur iPhone installé

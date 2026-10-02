@@ -1,6 +1,6 @@
 import { db } from '../db/db'
 import type { Product } from '../types'
-import { searchTargetFor } from '../utils/foodMatcher'
+import { keepRelevantProducts, searchTargetFor } from '../utils/foodMatcher'
 import { pickTopProducts } from '../utils/ranking'
 import { normalizeText } from '../utils/text'
 import { buildSearchParams, readHits, toProduct, type OffQuery } from './offSearch'
@@ -26,19 +26,34 @@ export class ProductSearchError extends Error {
   }
 }
 
-/** The 3 least industrial products for a shopping list label ("yaourt", "thon"…). */
-export async function findProducts(label: string): Promise<ProductSearchResult> {
+// How many ranked products are saved in the list item: the top 3 is shown first,
+// "Voir plus" reveals the rest, even offline in the shop.
+const SAVED_PRODUCTS = 10
+
+/** The least industrial products for a shopping list label ("yaourt", "thon"…), best first. */
+export async function findProducts(label: string, count = SAVED_PRODUCTS): Promise<ProductSearchResult> {
   const target = searchTargetFor(label)
   if (!target || target.kind === 'none') return { status: 'no-search' }
 
-  const query: OffQuery =
-    target.kind === 'category' ? { kind: 'category', category: target.category } : { kind: 'text', text: target.text }
-  const products = pickTopProducts(await getCandidates(query))
+  let candidates: Product[]
+  if (target.kind === 'category') {
+    candidates = await getCandidates({ kind: 'category', category: target.category })
+  } else {
+    const all = await getCandidates({ kind: 'text', text: target.text })
+    candidates = keepRelevantProducts(all, target.text)
+  }
+  const products = pickTopProducts(candidates, count)
   return {
     status: products.length > 0 ? 'found' : 'not-found',
     products,
     approximate: target.kind === 'text',
   }
+}
+
+/** Every product found for a label, best first (up to ~50). Comes from the cache when possible. */
+export async function findAllProducts(label: string): Promise<Product[]> {
+  const result = await findProducts(label, Infinity)
+  return result.status === 'no-search' ? [] : result.products
 }
 
 function cacheKey(query: OffQuery): string {

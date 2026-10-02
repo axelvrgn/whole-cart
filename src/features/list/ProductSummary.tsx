@@ -68,7 +68,7 @@ export function ProductSummary({ item, onOpenPicker }: Props) {
             </span>
           </span>
           <span className="shrink-0 text-xs font-medium text-green-700">
-            {rank > 0 ? `n°${rank}` : ''} · top {search.alternatives.length} ›
+            {rank > 0 ? `n°${rank}` : 'choix perso'} · autres choix ›
           </span>
         </button>
       )

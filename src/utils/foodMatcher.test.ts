@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FOODS } from '../data/foods'
-import { matchFood, searchTargetFor } from './foodMatcher'
-import { normalizeText } from './text'
+import { keepRelevantProducts, matchFood, searchTargetFor } from './foodMatcher'
+import { isOneEditAway, normalizeText } from './text'
 
 describe('normalizeText', () => {
   it('ignores case, accents, plurals and punctuation', () => {
@@ -48,6 +48,27 @@ describe('matchFood', () => {
     expect(matchFood('riz complet bio')?.label).toBe('Riz complet')
   })
 
+  it('accepts "fromage" before a cheese name', () => {
+    expect(matchFood('fromage comté')?.label).toBe('Comté')
+    expect(matchFood('fromage emmental râpé')?.label).toBe('Fromage râpé')
+  })
+
+  it('understands the frequent misspelling "compté"', () => {
+    expect(matchFood('compté')?.label).toBe('Comté')
+    expect(matchFood('fromage compté')?.label).toBe('Comté')
+  })
+
+  it('fixes an unambiguous one-letter typo on long words', () => {
+    expect(matchFood('emmenthal')?.label).toBe('Emmental')
+    expect(matchFood('mozarella')?.label).toBe('Mozzarella')
+    expect(matchFood('spagetti')?.label).toBe('Spaghetti')
+  })
+
+  it('leaves short words alone', () => {
+    // "ris" is one letter away from "riz", but too short to guess safely
+    expect(matchFood('ris de veau')).toBeUndefined()
+  })
+
   it('does not match when an extra word changes the product', () => {
     expect(matchFood('lait de coco')).toBeUndefined()
     expect(matchFood('yaourt à la fraise')).toBeUndefined()
@@ -62,6 +83,40 @@ describe('matchFood', () => {
   it('returns undefined for unknown or empty text', () => {
     expect(matchFood('kombucha')).toBeUndefined()
     expect(matchFood('   ')).toBeUndefined()
+  })
+})
+
+describe('isOneEditAway', () => {
+  it.each([
+    ['comte', 'comte', true],
+    ['compte', 'comte', true], // one letter added
+    ['comte', 'compte', true], // one letter removed
+    ['comte', 'conte', true], // one letter replaced
+    ['compote', 'comte', false], // two letters
+    ['abc', 'abcde', false],
+  ])('%s / %s → %s', (a, b, expected) => {
+    expect(isOneEditAway(a, b)).toBe(expected)
+  })
+})
+
+describe('keepRelevantProducts', () => {
+  const products = [
+    { code: '1', name: 'Lait de coco', brand: 'Suzi Wan' },
+    { code: '2', name: 'Lait demi-écrémé' },
+    { code: '3', name: 'Les pâtes à compter !', brand: 'Panzani' },
+    { code: '4', name: 'Boisson coco lait', brand: 'Bjorg' },
+  ]
+
+  it('keeps products whose name contains every meaningful word', () => {
+    expect(keepRelevantProducts(products, 'lait de coco').map((p) => p.code)).toEqual(['1', '4'])
+  })
+
+  it('drops loosely related results', () => {
+    expect(keepRelevantProducts(products, 'fromage compté')).toEqual([])
+  })
+
+  it('also looks at the brand', () => {
+    expect(keepRelevantProducts(products, 'coco bjorg').map((p) => p.code)).toEqual(['4'])
   })
 })
 

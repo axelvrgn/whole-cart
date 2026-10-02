@@ -29,7 +29,8 @@ export const FOODS: Food[] = [
   { label: 'Œufs', terms: ['oeuf', 'œuf', 'oeufs frais'], category: 'en:chicken-eggs' },
   { label: 'Emmental', terms: ['emmental'], category: 'en:emmentaler' },
   { label: 'Fromage râpé', terms: ['fromage rape', 'gruyere rape', 'emmental rape'], category: 'en:grated-cheese' },
-  { label: 'Comté', terms: ['comte'], category: 'en:comte' },
+  // "compté" is a frequent misspelling, too ambiguous for automatic typo fixing (compote?).
+  { label: 'Comté', terms: ['comte', 'compte'], category: 'en:comte' },
   { label: 'Mozzarella', terms: ['mozzarella', 'mozza'], category: 'en:mozzarella' },
   { label: 'Parmesan', terms: ['parmesan', 'parmigiano'], category: 'en:parmigiano-reggiano' },
   { label: 'Feta', terms: ['feta'], category: 'en:feta' },
